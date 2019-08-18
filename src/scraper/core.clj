@@ -10,7 +10,7 @@
       parse
       as-hickory))
 
-(def raw-data
+(def test-data
   (map :content
        (s/select
         (s/child (s/tag :table)
@@ -133,6 +133,28 @@
 
 (defn parse-season [data]
   (map parse-round (partition-rounds data)))
+
+(defn parse-finals [data]
+  (->> (drop-while #(not (end-header? %)) data)
+       (map (fn [row]
+              (when (match-header? row)
+                (parse-match-header row))))
+       (remove nil?)
+       vec))
+
+(defn afl-data [year]
+  (let [tree (-> (client/get
+                  (str "https://afltables.com/afl/seas/"
+                       year
+                       ".html#lad"))
+                 :body parse as-hickory)
+        data (map :content
+                  (s/select
+                   (s/child (s/tag :table)
+                            (s/el-not (s/has-descendant (s/tag :table))))
+                   site-tree))]
+    {:homenaway (parse-season data)
+     :finals (parse-finals data)}))
 
 (defn -main
   "I don't do a whole lot."
