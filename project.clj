@@ -5,6 +5,8 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [clj-http "3.10.0"]
+                 [incanter "1.9.3"]
+                 [com.rpl/specter "1.1.2"]
                  [hickory/hickory "0.7.1"]]
   :main ^:skip-aot scraper.core
   :repl-options {:init-ns scraper.core})

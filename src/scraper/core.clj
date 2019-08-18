@@ -71,7 +71,6 @@
   (let [team (bye-get-team data)]
     [:bye team]))
 
-;; (nth raw-data 10) is the ladder
 (defn parse-ladder-header [ladder]
   (->> ladder
        rest                  ; don't worry about heading
@@ -132,7 +131,7 @@
     round)))
 
 (defn parse-season [data]
-  (map parse-round (partition-rounds data)))
+  (mapv parse-round (partition-rounds data)))
 
 (defn parse-finals [data]
   (->> (drop-while #(not (end-header? %)) data)
@@ -152,7 +151,7 @@
                   (s/select
                    (s/child (s/tag :table)
                             (s/el-not (s/has-descendant (s/tag :table))))
-                   site-tree))]
+                   tree))]
     {:homenaway (parse-season data)
      :finals (parse-finals data)}))
 
