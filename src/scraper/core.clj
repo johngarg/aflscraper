@@ -1,20 +1,15 @@
 (ns scraper.core
   (:use hickory.core)
-  (:require [net.cgrand.enlive-html :as html]
-            [clj-http.client :as client]
+  (:require [clj-http.client :as client]
             [hickory.select :as s]
             [clojure.string :as str]))
 
 (def site-tree
-  (-> (client/get "https://afltables.com/afl/seas/2019.html#lad")
+  (-> (client/get "https://afltables.com/afl/seas/2018.html#lad")
       :body
       parse
       as-hickory))
 
-;; first contains round info
-;; second ... contains match info
-;; last contains ladder info
-;; goes on to next round
 (def raw-data
   (map :content
        (s/select
@@ -55,19 +50,89 @@
            :content first str/trim)
       :venue
       (-> metadata
-          :content (nth 5)
+          :content last
           :content first
           str/trim)}))
 
 (defn parse-match-header [data]
-  (let [[home _ away _] data]
+  (let [[home away] (remove #(= "\n" %) data)]
     {:home (parse-side home)
      :away (parse-side away)
      :metadata (parse-metadata home)}))
 
+(defn bye-get-team [data]
+  (->> data
+       first :content
+       first :content
+       first :content
+       first))
+
+(defn parse-bye-header [data]
+  (let [team (bye-get-team data)]
+    [:bye team]))
+
 ;; (nth raw-data 10) is the ladder
-(defn parse-ladder [ladder]
-  nil)
+(defn parse-ladder-header [ladder]
+  (->> ladder
+       rest                  ; don't worry about heading
+       (remove #(= "\n" %))
+       (map :content)        ; extract content
+       (map                  ; flatten data
+        (partial
+         map
+         (comp read-string str/trim first :content)))
+       (mapv                 ; convert first item to kw
+        #(vec
+          (cons
+           (keyword (first %))
+           (rest %))))))
+
+(defn round-header? [data]
+  (= 1 (count data)))
+
+(defn match-header? [data]
+  (= 4 (count data)))
+
+(defn ladder-header? [data]
+  (> (count data) 4))
+
+(defn bye-header? [data]
+  (= 2 (count data)))
+
+(defn end-header?
+  "The end of home 'n' away season ladder."
+  [data]
+  (= 3 (count data)))
+
+(defn partition-rounds [data]
+  (->> data
+       (take-while #(not (end-header? %)))
+       (partition-by #(round-header? %))
+       (partition 2)
+       (map #(apply concat %))))
+
+(defn into-round [round]
+  (let [name-data (first round)
+        ladder-data (last round)
+        matches-data ((comp rest butlast) round)]
+    {:round name-data
+     :ladder ladder-data
+     :matches (vec matches-data)}))
+
+(defn parse-round [round]
+  (into-round
+   (map
+    (fn [row]
+      (cond
+        (round-header? row) (parse-round-header row)
+        (match-header? row) (parse-match-header row)
+        (bye-header? row) (parse-bye-header row)
+        (ladder-header? row) (parse-ladder-header row)
+        :else {:unknown (count row)}))
+    round)))
+
+(defn parse-season [data]
+  (map parse-round (partition-rounds data)))
 
 (defn -main
   "I don't do a whole lot."
