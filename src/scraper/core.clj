@@ -1,10 +1,12 @@
 (ns scraper.core
   (:use hickory.core)
   (:require [clj-http.client :as client]
+            [clojure.data.json :as json]
             [hickory.select :as s]
             [clojure.string :as str]))
 
 (def BASE-URL "https://afltables.com/afl/")
+(def MISSING :unknown)
 
 (defn read-url [url]
   (-> (client/get url)
@@ -75,13 +77,110 @@
          :content first
          str/trim)
      :stats
-     (full-path BASE-URL (get-stats-url away))}))
+     (full-path BASE-URL
+                (get-stats-url away))}))
+
+;; matchstats
+(defn match-stats [url]
+  (s/select (s/child (s/tag :tr))
+            (read-url url)))
+
+(defn parse-ump [data] nil)
+
+(defn parse-team-name [data]
+  (-> data
+      first
+      :content
+      first
+      (str/split #"\s+")
+      first))
+
+(defn read-val [data]
+  (cond
+    (= "\u00A0" data) MISSING
+    (= " " data) MISSING
+    (= "" data) MISSING
+    (= "1%" data) :OP
+    (= "%P" data) :PP
+    :else (read-string data)))
+
+(defn parse-player-number [data]
+  (-> data first :content first str/trim read-string))
+
+(defn parse-player-name [data]
+  (-> data first :content first :content first))
+
+(defn parse-player-stat [[v k]]
+  {(keyword (read-val (first (:content k))))
+   (read-val (first (:content v)))})
+
+(defn parse-player-stats [data]
+  (map parse-player-stat data))
+
+(defn parse-player [player cols]
+  (let [data (map vector player cols)
+        num (first data)
+        name (second data)
+        stats (drop 2 data)]
+    {:number (parse-player-number num)
+     :name (parse-player-name name)
+     :stats (parse-player-stats stats)}))
+
+(defn parse-team-match-stats [data]
+  ;; example match
+  ;; (take 25 (drop 7 (match-stats stats-ex)))
+  (let [d (map :content data)
+        name (first d)
+        ;; rushed (last d)
+        cols (second d)
+        players (drop 2 d)]
+    {:name (parse-team-name name)
+     :players (map #(parse-player % cols) players)}))
+
+(defn match-stats-end-header? [x]
+  (= ["Totals"] (-> x :content first :content first :content)))
+
+(defn rushed? [x]
+  (= ["Rushed"] (:content (first (:content x)))))
+
+(defn team-start-header? [x]
+  (= {:width "93%"} (-> x :content first :attrs)))
+
+(defn get-team-data [data]
+  (->> data
+       (partition-by team-start-header?)
+       last
+       (partition-by rushed?)
+       first))
+
+(defn partition-teams [data]
+  ;; t1pre = data containing team 1 and preable and possibly rushed
+  ;; r1 = totals for team 1
+  ;; t2tot = data containing team 2 and possibly rushed
+  ;; r2 = totals for team 2
+  ;; r = rest of data
+  (let [[t1pre r1 t2tot r2 & r] (partition-by match-stats-end-header? data)
+        ;; pre (take 7 t1pre) ;; for now don't do anything with this
+        t1 (get-team-data t1pre)
+        ;; t1 (drop 7 (first (partition-by rushed? t1pre)))
+        ;; t2 (drop 2 (first (partition-by rushed? t2tot)))
+        t2 (get-team-data t2tot)
+        ]
+    [t1 t2]))
+
+(defn parse-match-stats [data]
+  (let [ump (nth data 5)
+        [home away] (partition-teams data)]
+    {:home (parse-team-match-stats home)
+     :away (parse-team-match-stats away)}))
 
 (defn parse-match-header [data]
-  (let [[home away] (remove #(= "\n" %) data)]
+  (let [[home away] (remove #(= "\n" %) data)
+        meta (parse-metadata home away)]
     {:home (parse-side home)
      :away (parse-side away)
-     :metadata (parse-metadata home away)}))
+     :matchstats (parse-match-stats (match-stats (:stats meta)))
+     :metadata meta}))
 
 (defn bye-get-team [data]
   (->> data
@@ -150,7 +249,7 @@
         (match-header? row) (parse-match-header row)
         (bye-header? row) (parse-bye-header row)
         (ladder-header? row) (parse-ladder-header row)
-        :else {:unknown (count row)}))
+        :else {MISSING (count row)}))
     round)))
 
 (defn parse-season [data]
@@ -174,31 +273,23 @@
     {:homenaway (parse-season data)
      :finals (parse-finals data)}))
 
-(defn match-stats [match]
+
+
+
+;; match stats extras
+
+(defn match-stats-url [match]
   (let [stats-url (get-in match [:metadata :stats])]
     stats-url))
 
-; TODO Remove this once above is written
 (def stats-ex
   (get-in (first (:matches (first (:homenaway (afl-data 2018)))))
           [:metadata :stats]))
 
-(defn match-stats [url]
-  (s/select (s/child (s/tag :tr))
-            (read-url url)))
 
-(defn parse-match-stats [data]
-  (let [ump (nth data 5)
-        key (nth data 6)
-        home-heading (nth data 7)
-        home-header (nth data 8)
-        ;; ... then the players
-        ]
-    ump))
-
-; (s/select (s/child (s/tag :th) (s/attr {:colspan "25"})) stats-ex)
 
 (defn -main
   "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+  [year]
+  (println
+   (json/write-str (afl-data year))))
