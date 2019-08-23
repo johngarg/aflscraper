@@ -55,7 +55,8 @@
   (->> away
        last last last
        :content
-       (remove #(= "]" %))
+       ;; (remove #(= "]" %))
+       (remove string?)
        last
        :attrs :href))
 
