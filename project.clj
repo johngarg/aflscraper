@@ -6,6 +6,8 @@
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [clj-http "3.10.0"]
                  [incanter "1.9.3"]
+                 [org.clojure/data.csv "0.1.4"]
+                 [org.clojure/data.json "0.2.6"]
                  [com.rpl/specter "1.1.2"]
                  [hickory/hickory "0.7.1"]]
   :main ^:skip-aot scraper.core
