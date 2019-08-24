@@ -1,6 +1,6 @@
-(ns scraper.core-test
+(ns aflscraper.core-test
   (:require [clojure.test :refer :all]
-            [scraper.core :refer :all]))
+            [aflscraper.core :refer :all]))
 
 (deftest a-test
   (testing "FIXME, I fail."
