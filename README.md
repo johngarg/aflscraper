@@ -1,10 +1,12 @@
-# scraper
+# aflscraper
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure app to scrape data from afltables.com
 
 ## Usage
 
-FIXME
+```
+lein run 2018 > data.json
+```
 
 ## License
 

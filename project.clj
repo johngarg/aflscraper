@@ -1,5 +1,5 @@
-(defproject scraper "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+(defproject aflscraper "0.1.0-SNAPSHOT"
+  :description "A tool for scraping data from afltables.com"
   :url "http://example.com/FIXME"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
             :url "https://www.eclipse.org/legal/epl-2.0/"}
@@ -10,5 +10,5 @@
                  [org.clojure/data.json "0.2.6"]
                  [com.rpl/specter "1.1.2"]
                  [hickory/hickory "0.7.1"]]
-  :main ^:skip-aot scraper.core
-  :repl-options {:init-ns scraper.core})
+  :main ^:skip-aot aflscraper.core
+  :repl-options {:init-ns aflscraper.core})

@@ -1,4 +1,4 @@
-(ns scraper.core
+(ns aflscraper.core
   (:use hickory.core)
   (:require [clj-http.client :as client]
             [clojure.data.json :as json]
