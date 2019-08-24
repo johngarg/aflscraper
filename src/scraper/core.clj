@@ -14,19 +14,6 @@
       parse
       as-hickory))
 
-(def site-tree
-  (-> (client/get "https://afltables.com/afl/seas/2018.html#lad")
-      :body
-      parse
-      as-hickory))
-
-(def test-data
-  (map :content
-       (s/select
-        (s/child (s/tag :table)
-                 (s/el-not (s/has-descendant (s/tag :table))))
-        site-tree)))
-
 (defn parse-round-header [data]
   "Returns the round number as a string: Round N"
   (->> data
@@ -124,7 +111,7 @@
         stats (drop 2 data)]
     {:number (parse-player-number num)
      :name (parse-player-name name)
-     :stats (parse-player-stats stats)}))
+     :stats (apply merge (parse-player-stats stats))}))
 
 (defn parse-team-match-stats [data]
   ;; example match
@@ -275,12 +262,19 @@
 
 
 
+;; test data
+(def site-tree
+  (-> (client/get "https://afltables.com/afl/seas/2018.html#lad")
+      :body
+      parse
+      as-hickory))
 
-;; match stats extras
-
-(defn match-stats-url [match]
-  (let [stats-url (get-in match [:metadata :stats])]
-    stats-url))
+(def test-data
+  (map :content
+       (s/select
+        (s/child (s/tag :table)
+                 (s/el-not (s/has-descendant (s/tag :table))))
+        site-tree)))
 
 (def stats-ex
   (get-in (first (:matches (first (:homenaway (afl-data 2018)))))
